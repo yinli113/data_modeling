@@ -21,8 +21,7 @@ from sql_queries import *
 # In[2]:
 
 
-conn = psycopg2.connect("host=127.0.0.1 dbname=sparkifydb
-                user=student password=student port=5432")
+conn = psycopg2.connect("host=127.0.0.1 dbname=sparkifydb user=student password=student port=5432")
 cur = conn.cursor()
 
 
@@ -159,7 +158,7 @@ for value, index1, index2 in duplicates:
 selected_columns = ['song_id', 'artist_id', 'year', 'duration', 'title']
 result1 = df_song_data[selected_columns]
 # create a list with the values of each row in a tuple
-song_data = list(zip(result1['song_id'], result1['artist_id'], result1['year'],
+song_data = list(zip(result1['song_id'], result1['artist_id'], result1['year'],\
                      result1['duration'], result1['title']))
 
 
@@ -168,9 +167,9 @@ song_data = list(zip(result1['song_id'], result1['artist_id'], result1['year'],
 
 def insert_data_into_songs(song_data, conn, cur):
     # Insert song data into the songs table
-    song_table_insert = "INSERT INTO songs(
+    song_table_insert = "INSERT INTO songs(\
                         song_id, artist_id, year, duration, title)\
-                        VALUES(% s, % s, % s, % s, % s)\
+                        VALUES(%s, %s, %s, %s, %s)\
                         ON CONFLICT(song_id) DO NOTHING"
     for song in song_data:
         cur.execute(song_table_insert, song)
@@ -220,17 +219,17 @@ alter_songs_table_columns(conn, cur)
 
 
 # create the dataframe of artists
-artist_data_column = ['artist_id', 'artist_name', 'artist_location',
+artist_data_column = ['artist_id', 'artist_name', 'artist_location',\
                       'artist_latitude', 'artist_longitude']
 artist_dataframe = df_song_data[artist_data_column]
 
 # replace the empty values in artist_location with NULL
-artist_location = [None if i.strip() == ''
+artist_location = [None if i.strip() == ''\
                    else i for i in artist_dataframe['artist_location']]
 
 # get the artists data as tuples in a list
-artist_data = list(zip(artist_dataframe['artist_id'],
-                       artist_dataframe['artist_name'], artist_dataframe['artist_location'],
+artist_data = list(zip(artist_dataframe['artist_id'],\
+                       artist_dataframe['artist_name'], artist_dataframe['artist_location'],\
                        artist_dataframe['artist_latitude'], artist_dataframe['artist_longitude']))
 
 
@@ -463,8 +462,8 @@ def insert_users_data(conn, cur, user_df):
     # insert data into table
     for i, row in user_df.iterrows():
         cur.execute(user_table_insert, row)
-        conn.commit()
-        print("users data inserted successfully!")
+    conn.commit()
+    print("users data inserted successfully!")
 
 
 insert_users_data(conn, cur, user_df)
