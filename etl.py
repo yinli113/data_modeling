@@ -4,9 +4,6 @@
 # # ETL Processes
 # Use this notebook to develop the ETL process for each of tables before completing the `etl.py` file to load the whole datasets.
 
-# In[1]:
-
-
 import os
 import glob
 import json
@@ -15,63 +12,45 @@ import datetime
 import pandas as pd
 from sql_queries import *
 
-
 # Establish a new connection and create a new cursor
-
-# In[2]:
-
 
 conn = psycopg2.connect("host=127.0.0.1 dbname=sparkifydb user=student password=student port=5432")
 cur = conn.cursor()
 
-
-# # Process `song_data`
-# In this first part, you'll perform ETL on the first dataset, `song_data`, to create the `songs` and `artists` dimensional tables.
-#
-# Let's perform ETL on a single song file and load a single record into each table to start.
-# - Use the `get_files` function provided above to get a list of all song JSON files in `data/song_data`
-# - Select the first song in this list
-# - Read the song file and view the data
-
 # Use the get_files function provided above to get a list of all song JSON files in data/song_data
-
-# In[3]:
-
-
 def get_files(filepath):
     all_files = []
     for root, dirs, files in os.walk(filepath):
         files = glob.glob(os.path.join(root, '*.json'))
         for f in files:
             all_files.append(os.path.abspath(f))
-
     return all_files
-
 
 filepath = 'data/song_data'
 song_files = get_files(filepath)
 
+if song_files:
+    song_data_list = []
 
-# Select the first song in this list
+    for song_file in song_files:
+        with open(song_file, 'r') as f:
+            for line in f:
+                try:
+                    song_data = json.loads(line)
+                    song_data_list.append(song_data)
+                except json.JSONDecodeError:
+                    print("Invalid JSON object:", line)
 
-# In[4]:
-
-
-# Read the song file and view the data
-song_data_list = []
-# Iterate through each log file in the list and read its data
-for song_file in song_files:
-    with open(song_file, 'r') as f:
-        for line in f:
-            try:
-                dflog = json.loads(line)
-                song_data_list.append(line)
-            except json.JSONDecodeError:
-                print("Invalid JSON object:", line)
-
-
-# In[5]:
-
+    if song_data_list:
+        print(song_data_list[0])
+        if len(song_data_list) > 1:
+            print(list(song_data_list[1].keys()))
+        else:
+            print("No records found in song_data_list.")
+    else:
+        print("No valid JSON data found in the files.")
+else:
+    print("No JSON files found in the specified directory.")
 
 # convert the string in the list and return it back to dictionary
 song_list = [json.loads(item.replace("''", "")) for item in song_data_list]
@@ -81,16 +60,7 @@ print(song_list[0])
 col = song_list[1].keys()
 print(col)
 
-
-# ## #1: `songs` Table
-# #### Extract Data for Songs Table
-# - Select columns for song ID, title, artist ID, year, and duration
-# - Use `df.values` to select just the values from the dataframe
-# - Index to select the first (only) record in the dataframe
-# - Convert the array to a list and set it to `song_data`
-
-# In[6]:
-
+#1: `songs` Table
 
 # create the dataframe
 df_song_data = pd.DataFrame(song_list)
@@ -104,10 +74,6 @@ df_song_data.head()
 # Index to select the first (only) record in the dataframe
 first_record = df_song_data.loc[0]
 
-
-# In[7]:
-
-
 # check if the primary key in tables that have been created are unique value
 def check_unique(lst):
     if len(lst) == len(set(lst)):
@@ -115,16 +81,11 @@ def check_unique(lst):
     else:
         return False
 
-
 song_id = list(df_song_data['song_id'])
 print("song_id is", check_unique(song_id))
 print()
 artist_id = list(df_song_data['artist_id'])
 print("artist_id is", check_unique(artist_id))
-
-
-# In[8]:
-
 
 # find the duplicated values in artist_id
 def find_duplicates(my_list):
@@ -139,7 +100,6 @@ def find_duplicates(my_list):
 
     return duplicates
 
-
 my_list = df_song_data['artist_id']
 duplicates = find_duplicates(my_list)
 
@@ -150,9 +110,6 @@ for value, index1, index2 in duplicates:
 # #### Insert Record into Song Table
 # Implement the `song_table_insert` query in `sql_queries.py` and run the cell below to insert a record for this song into the `songs` table. Remember to run `create_tables.py` before running the cell below to ensure you've created/resetted the `songs` table in the sparkify database.
 
-# In[9]:
-
-
 # create the dataframe result which only hold the values of 'song_id'
 # 'artist_id', 'year', 'duration', 'title'
 selected_columns = ['song_id', 'artist_id', 'year', 'duration', 'title']
@@ -160,10 +117,6 @@ result1 = df_song_data[selected_columns]
 # create a list with the values of each row in a tuple
 song_data = list(zip(result1['song_id'], result1['artist_id'], result1['year'],\
                      result1['duration'], result1['title']))
-
-
-# In[10]:
-
 
 def insert_data_into_songs(song_data, conn, cur):
     # Insert song data into the songs table
@@ -176,10 +129,7 @@ def insert_data_into_songs(song_data, conn, cur):
     conn.commit()
     print("Song data inserted successfully!")
 
-
 insert_data_into_songs(song_data, conn, cur)
-# In[11]:
-
 
 def delete_null_values_in_songs(conn, cur):
     # Delete null values in songs table
@@ -187,10 +137,7 @@ def delete_null_values_in_songs(conn, cur):
     cur.execute(delete_query)
     conn.commit()
 
-
 delete_null_values_in_songs(conn, cur)
-# In[12]:
-
 
 def alter_songs_table_columns(conn, cur):
     # Alter the songs table columns to set them to NOT NULL
@@ -204,7 +151,6 @@ def alter_songs_table_columns(conn, cur):
         cur.execute(query)
     conn.commit()
 
-
 alter_songs_table_columns(conn, cur)
 # Run `test.ipynb` to see if you've successfully added a record to this table.
 
@@ -214,9 +160,6 @@ alter_songs_table_columns(conn, cur)
 # - Use `df.values` to select just the values from the dataframe
 # - Index to select the first (only) record in the dataframe
 # - Convert the array to a list and set it to `artist_data`
-
-# In[13]:
-
 
 # create the dataframe of artists
 artist_data_column = ['artist_id', 'artist_name', 'artist_location',\
@@ -232,12 +175,8 @@ artist_data = list(zip(artist_dataframe['artist_id'],\
                        artist_dataframe['artist_name'], artist_dataframe['artist_location'],\
                        artist_dataframe['artist_latitude'], artist_dataframe['artist_longitude']))
 
-
 # #### Insert Record into Artist Table
 # Implement the `artist_table_insert` query in `sql_queries.py` and run the cell below to insert a record for this song's artist into the `artists` table. Remember to run `create_tables.py` before running the cell below to ensure you've created/resetted the `artists` table in the sparkify database.
-
-# In[14]:
-
 
 def insert_data_into_artists(artist_data, conn, cur):
     # Insert artist data into the artists table
@@ -252,10 +191,7 @@ def insert_data_into_artists(artist_data, conn, cur):
     conn.commit()
     print("Artist data inserted successfully!")
 
-
 insert_data_into_artists(artist_data, conn, cur)
-# In[15]:
-
 
 def foreign_key_added(conn, cur):
     # create a foreign key in table songs references to artist table
@@ -267,8 +203,6 @@ def foreign_key_added(conn, cur):
 
 
 foreign_key_added(conn, cur)
-# In[16]:
-
 
 def delete_null_values_in_artists(conn, cur):
     # Delete null values in artists table
@@ -278,10 +212,7 @@ def delete_null_values_in_artists(conn, cur):
     cur.execute(delete_query2)
     conn.commit()
 
-
 delete_null_values_in_artists(conn, cur)
-# In[17]:
-
 
 def set_not_null_values_in_artists(conn, cur):
     # set the column ( artist_id, artist_name)to NOT NULL
@@ -290,7 +221,6 @@ def set_not_null_values_in_artists(conn, cur):
     cur.execute(alter_query1)
     cur.execute(alter_query2)
     conn.commit()
-
 
 set_not_null_values_in_artists(conn, cur)
 # Run `test.ipynb` to see if you've successfully added a record to this table.
@@ -302,9 +232,6 @@ set_not_null_values_in_artists(conn, cur)
 # - Use the `get_files` function provided above to get a list of all log JSON files in `data/log_data`
 # - Select the first log file in this list
 # - Read the log file and view the data
-
-# In[ ]:
-
 
 # Use the get_files function provided above to get a list of all song JSON files in data/song_data
 def get_file_log(filepath2):
@@ -340,9 +267,6 @@ log_list = [json.loads(item.replace("''", "")) for item in log_data_list]
 df_log = pd.DataFrame(log_list)
 
 
-# In[ ]:
-
-
 # check if the primary key in tables that have been created are unique value
 def check_unique(lst):
     if len(lst) == len(set(lst)):
@@ -370,9 +294,6 @@ print("ts is", check_unique(ts))
 # - Specify labels for these columns and set to `column_labels`
 # - Create a dataframe, `time_df,` containing the time data for this file by combining `column_labels` and `time_data` into a dictionary and converting this into a dataframe
 
-# In[ ]:
-
-
 # Convert the timestamp to a datetime object
 t_time = pd.to_datetime(df_log['ts'])
 start_time = [i for i in t_time]
@@ -394,9 +315,6 @@ time_df = pd.DataFrame(df_start_time)
 
 # #### Insert Records into Time Table
 # Implement the `time_table_insert` query in `sql_queries.py` and run the cell below to insert records for the timestamps in this log file into the `time` table. Remember to run `create_tables.py` before running the cell below to ensure you've created/resetted the `time` table in the sparkify database.
-
-# In[ ]:
-
 
 def insert_time_data(conn, cur, time_df):
     # create insert query
@@ -432,9 +350,6 @@ insert_time_data(conn, cur, time_df)
 # #### Extract Data for Users Table
 # - Select columns for user ID, first name, last name, gender and level and set to `user_df`
 
-# In[ ]:
-
-
 # change column name userId to userid
 df_log.rename(columns={'userId': 'userid'}, inplace=True)
 
@@ -446,8 +361,6 @@ user_df = df_log[user_column]
 
 # #### Insert Records into Users Table
 # Implement the `user_table_insert` query in `sql_queries.py` and run the cell below to insert records for the users in this log file into the `users` table. Remember to run `create_tables.py` before running the cell below to ensure you've created/resetted the `users` table in the sparkify database.
-
-# In[ ]:
 
 
 def insert_users_data(conn, cur, user_df):
@@ -479,9 +392,6 @@ insert_users_data(conn, cur, user_df)
 # #### Insert Records into Songplays Table
 # - Implement the `songplay_table_insert` query and run the cell below to insert records for the songplay actions in this log file into the `songplays` table. Remember to run `create_tables.py` before running the cell below to ensure you've created/resetted the `songplays` table in the sparkify database.
 
-# In[ ]:
-
-
 # according the matching condition between df_log and df_song_data  to merge two dataframes
 # "title" ="song" , "artist_name"="artist", "duration"="length"
 # Merge the dataframes based on the specified columns
@@ -503,17 +413,11 @@ merged_data['start_time'] = pd.to_datetime(merged_data['start_time'])
 print(merged_data)
 
 
-# In[ ]:
-
-
 df_log['ts'] = pd.to_datetime(df_log['ts'])
 
 
 # find a reliable way to link the log_data dataset with the songs and artists tables based on the available data
 # By performing this join, you can link the song information from the log_data dataset with the corresponding entries in the songs and artists tables.
-
-# In[ ]:
-
 
 def insert_songplay_data(conn, cur, df_song_data, merged_data):
     # insert data into songplays
@@ -558,12 +462,5 @@ insert_songplay_data(conn, cur, df_song_data, merged_data)
 
 # # Close Connection to Sparkify Database
 
-# In[ ]:
-
-
 cur.close()
 conn.close()
-
-
-# # Implement `etl.py`
-# Use what you've completed in this notebook to implement `etl.py`.
